@@ -3,6 +3,7 @@ require('dotenv').config();
 const express = require("express");
 const cors = require("cors");
 const mongoose = require("mongoose");
+const path = require("path");
 
 const authRoutes = require("./routes/auth");
 const meRoutes = require("./routes/me");
@@ -51,7 +52,7 @@ async function start() {
 	// CORS configuration for production
 	const allowedOrigins = process.env.ALLOWED_ORIGINS
 		? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim())
-		: ['http://localhost:3000', 'chrome-extension://localhost'];
+		: ['http://localhost:3000', 'http://localhost:5500', 'http://127.0.0.1:5500', 'chrome-extension://localhost'];
 	
 	app.use(cors({
 		origin: function (origin, callback) {
@@ -70,6 +71,9 @@ async function start() {
 	}));
 	app.use(express.json());
 
+	// Serve frontend static files
+	app.use(express.static(path.join(__dirname, '../frontend')));
+
 	// Health check (no rate limit)
 	app.get("/health", (_req, res) => res.json({ ok: true, timestamp: new Date().toISOString() }));
 
@@ -81,17 +85,21 @@ async function start() {
 	app.use("/api/analytics", analyticsRoutes); // Analytics with auth middleware
 	app.use("/api", jobsRoutes);
 
-	// 404 handler (must be before error handler)
-	app.use((_req, res) => {
-		res.status(404).json({
-			success: false,
-			error: {
-				message: "Endpoint not found",
-				code: "NOT_FOUND",
-				requestId: _req.id,
-				timestamp: new Date().toISOString(),
-			},
-		});
+	// Serve frontend for all non-API routes (SPA fallback)
+	app.get('*', (req, res) => {
+		if (!req.path.startsWith('/api')) {
+			res.sendFile(path.join(__dirname, '../frontend/index.html'));
+		} else {
+			res.status(404).json({
+				success: false,
+				error: {
+					message: "Endpoint not found",
+					code: "NOT_FOUND",
+					requestId: req.id,
+					timestamp: new Date().toISOString(),
+				},
+			});
+		}
 	});
 
 	// Global error handler (must be last middleware)
