@@ -69,7 +69,10 @@ async function start() {
 		methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
 		allowedHeaders: ['Content-Type', 'Authorization']
 	}));
-	app.use(express.json());
+	
+	// Request size limits (prevent DDoS)
+	app.use(express.json({ limit: '5mb' })); // 5MB max JSON payload
+	app.use(express.urlencoded({ extended: true, limit: '5mb' }));
 
 	// Serve frontend static files
 	app.use(express.static(path.join(__dirname, '../frontend')));

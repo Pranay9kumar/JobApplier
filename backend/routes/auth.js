@@ -8,13 +8,20 @@ const {
 	verifyRefreshToken,
 	signAccessToken,
 } = require("../utils/authUtils");
-const { validateInput, isValidEmail } = require("../utils/securityMiddleware");
+const { 
+	validateInput, 
+	isValidEmail,
+	validatePassword,
+	isValidName,
+	validateAuthInput
+} = require("../utils/securityMiddleware");
 
 const router = express.Router();
 
 // POST /api/auth/signup - Register new user with token response
 router.post(
 	"/signup",
+	validateAuthInput,
 	validateInput({
 		email: { required: true, type: "string", minLength: 5, maxLength: 254 },
 		password: { required: true, type: "string", minLength: 8, maxLength: 128 },
@@ -28,15 +35,33 @@ router.post(
 	asyncHandler(async (req, res) => {
 		const { name, email, password, tokenType = TOKEN_TYPES.WEB } = req.body;
 
-		// Email validation
-		if (!isValidEmail(email)) {
+		// Normalize and validate email
+		const normalizedEmail = email.toLowerCase().trim();
+		if (!isValidEmail(normalizedEmail)) {
 			throw new AppError("Invalid email format", 400, {
 				field: "email",
 			});
 		}
 
+		// Validate password strength
+		const passwordValidation = validatePassword(password);
+		if (!passwordValidation.valid) {
+			throw new AppError(passwordValidation.message, 400, {
+				field: "password",
+			});
+		}
+
+		// Validate name if provided
+		if (name && !isValidName(name)) {
+			throw new AppError(
+				"Invalid name. Use 2-100 characters with letters, spaces, hyphens, or apostrophes",
+				400,
+				{ field: "name" }
+			);
+		}
+
 		// Check existing user
-		const existing = await User.findOne({ email: email.toLowerCase().trim() });
+		const existing = await User.findOne({ email: normalizedEmail });
 		if (existing) {
 			throw new AppError("Email already registered", 409, {
 				field: "email",
@@ -46,8 +71,8 @@ router.post(
 		// Create user with hashed password
 		const passwordHash = await User.hashPassword(password);
 		const user = await User.create({
-			name: name || email.split("@")[0],
-			email: email.toLowerCase().trim(),
+			name: name || normalizedEmail.split("@")[0],
+			email: normalizedEmail,
 			passwordHash,
 		});
 
@@ -65,6 +90,7 @@ router.post(
 // POST /api/auth/login - Authenticate user with token response
 router.post(
 	"/login",
+	validateAuthInput,
 	validateInput({
 		email: { required: true, type: "string" },
 		password: { required: true, type: "string" },
@@ -77,8 +103,18 @@ router.post(
 	asyncHandler(async (req, res) => {
 		const { email, password, tokenType = TOKEN_TYPES.WEB } = req.body;
 
+		// Normalize email
+		const normalizedEmail = email.toLowerCase().trim();
+
+		// Validate email format
+		if (!isValidEmail(normalizedEmail)) {
+			throw new AppError("Invalid email format", 400, {
+				field: "email",
+			});
+		}
+
 		// Find user and verify password
-		const user = await User.findOne({ email: email.toLowerCase().trim() }).select(
+		const user = await User.findOne({ email: normalizedEmail }).select(
 			"+passwordHash"
 		);
 		if (!user) {

@@ -242,11 +242,88 @@ const secureHeaders = (req, res, next) => {
 };
 
 /**
- * Email format validation
+ * Email format validation (RFC 5322 simplified)
  */
 const isValidEmail = (email) => {
 	const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 	return emailRegex.test(email) && email.length <= 254;
+};
+
+/**
+ * Password strength validation
+ */
+const validatePassword = (password) => {
+	if (password.length < 8 || password.length > 128) {
+		return { valid: false, message: 'Password must be 8-128 characters' };
+	}
+	
+	const hasUpperCase = /[A-Z]/.test(password);
+	const hasLowerCase = /[a-z]/.test(password);
+	const hasNumbers = /\d/.test(password);
+	const hasSpecialChar = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password);
+	
+	const strength = [hasUpperCase, hasLowerCase, hasNumbers, hasSpecialChar].filter(Boolean).length;
+	
+	if (strength < 3) {
+		return { 
+			valid: false, 
+			message: 'Password must contain uppercase, lowercase, numbers, and special characters' 
+		};
+	}
+	
+	return { valid: true };
+};
+
+/**
+ * Name validation
+ */
+const isValidName = (name) => {
+	const trimmed = name.trim();
+	if (trimmed.length < 2 || trimmed.length > 100) return false;
+	return /^[a-zA-Z\s\-']+$/.test(trimmed); // Only letters, spaces, hyphens, apostrophes
+};
+
+/**
+ * Resume text validation
+ */
+const isValidResumeText = (text) => {
+	const trimmed = text.trim();
+	return trimmed.length >= 50 && trimmed.length <= 50000;
+};
+
+/**
+ * Search query validation (prevent injection)
+ */
+const isValidSearchQuery = (query) => {
+	if (query.length === 0) return true; // Empty is ok
+	if (query.length > 100) return false;
+	
+	// Block dangerous patterns
+	const dangerousPatterns = [
+		/(\bselect\b|\binsert\b|\bupdate\b|\bdelete\b|\bdrop\b|;|--|\*|\/\*)/i,
+		/[$\{\}]/,
+		/\\x[0-9a-f]{2}/i
+	];
+	
+	for (const pattern of dangerousPatterns) {
+		if (pattern.test(query)) return false;
+	}
+	
+	return true;
+};
+
+/**
+ * Escape HTML to prevent XSS
+ */
+const escapeHtml = (text) => {
+	const map = {
+		'&': '&amp;',
+		'<': '&lt;',
+		'>': '&gt;',
+		'"': '&quot;',
+		"'": '&#039;'
+	};
+	return text.replace(/[&<>"']/g, m => map[m]);
 };
 
 /**
@@ -260,11 +337,149 @@ const sanitizeString = (str) => {
 		.slice(0, 5000); // Limit length
 };
 
+/**
+ * Comprehensive input validation for common endpoints
+ */
+const validateAuthInput = (req, res, next) => {
+	const { email, password, name } = req.body || {};
+	const endpoint = req.path;
+
+	// Signup validation
+	if (endpoint.includes('signup')) {
+		if (!email || !isValidEmail(email)) {
+			throw new AppError('Invalid email address', 400, {
+				code: 'INVALID_EMAIL',
+				field: 'email'
+			});
+		}
+
+		if (!password) {
+			throw new AppError('Password is required', 400, {
+				code: 'MISSING_PASSWORD',
+				field: 'password'
+			});
+		}
+
+		const passwordValidation = validatePassword(password);
+		if (!passwordValidation.valid) {
+			throw new AppError(passwordValidation.message, 400, {
+				code: 'WEAK_PASSWORD',
+				field: 'password'
+			});
+		}
+
+		if (!name || !isValidName(name)) {
+			throw new AppError('Invalid name. Use 2-100 characters with letters, spaces, hyphens, or apostrophes', 400, {
+				code: 'INVALID_NAME',
+				field: 'name'
+			});
+		}
+	}
+
+	// Login validation
+	if (endpoint.includes('login')) {
+		if (!email || !isValidEmail(email)) {
+			throw new AppError('Invalid email address', 400, {
+				code: 'INVALID_EMAIL',
+				field: 'email'
+			});
+		}
+
+		if (!password || password.length === 0) {
+			throw new AppError('Password is required', 400, {
+				code: 'MISSING_PASSWORD',
+				field: 'password'
+			});
+		}
+
+		if (password.length > 128) {
+			throw new AppError('Invalid password format', 400, {
+				code: 'INVALID_PASSWORD_FORMAT',
+				field: 'password'
+			});
+		}
+	}
+
+	next();
+};
+
+/**
+ * Validate resume submission
+ */
+const validateResumeInput = (req, res, next) => {
+	const { resumeText } = req.body || {};
+
+	if (!resumeText || !isValidResumeText(resumeText)) {
+		throw new AppError(
+			'Resume must be between 50 and 50,000 characters',
+			400,
+			{
+				code: 'INVALID_RESUME',
+				field: 'resumeText'
+			}
+		);
+	}
+
+	next();
+};
+
+/**
+ * Validate job search/filter input
+ */
+const validateJobFilters = (req, res, next) => {
+	const { search, sort, location, salary_min, salary_max } = req.query || {};
+
+	if (search && !isValidSearchQuery(search)) {
+		throw new AppError('Invalid search query', 400, {
+			code: 'INVALID_SEARCH',
+			field: 'search'
+		});
+	}
+
+	if (sort && !['relevance', 'date', 'salary'].includes(sort)) {
+		throw new AppError('Invalid sort option', 400, {
+			code: 'INVALID_SORT',
+			field: 'sort'
+		});
+	}
+
+	if (location && location.length > 100) {
+		throw new AppError('Location string too long', 400, {
+			code: 'INVALID_LOCATION',
+			field: 'location'
+		});
+	}
+
+	if (salary_min && (isNaN(salary_min) || parseInt(salary_min) < 0)) {
+		throw new AppError('Invalid minimum salary', 400, {
+			code: 'INVALID_SALARY_MIN',
+			field: 'salary_min'
+		});
+	}
+
+	if (salary_max && (isNaN(salary_max) || parseInt(salary_max) < 0)) {
+		throw new AppError('Invalid maximum salary', 400, {
+			code: 'INVALID_SALARY_MAX',
+			field: 'salary_max'
+		});
+	}
+
+	next();
+};
+
 module.exports = {
 	createRateLimiter,
 	aiRateLimiter,
 	validateInput,
 	secureHeaders,
 	isValidEmail,
+	validatePassword,
+	isValidName,
+	isValidResumeText,
+	isValidSearchQuery,
+	escapeHtml,
 	sanitizeString,
+	validateAuthInput,
+	validateResumeInput,
+	validateJobFilters
 };

@@ -10,6 +10,21 @@ async function loadJobs(query = '', location = '', sort = 'recent') {
     const emptyState = document.getElementById('emptyState');
     const jobsGrid = document.getElementById('jobsGrid');
 
+    // Validate search query
+    if (query && typeof Validators !== 'undefined') {
+        const queryValidation = Validators.searchQuery(query);
+        if (!queryValidation.valid) {
+            showToast(queryValidation.message, 'error');
+            return;
+        }
+    }
+
+    // Validate location
+    if (location && location.length > 100) {
+        showToast('Location string too long', 'error');
+        return;
+    }
+
     loadingState.style.display = 'block';
     errorState.style.display = 'none';
     emptyState.style.display = 'none';
@@ -17,8 +32,8 @@ async function loadJobs(query = '', location = '', sort = 'recent') {
 
     try {
         const params = new URLSearchParams();
-        if (query) params.append('q', query);
-        if (location) params.append('location', location);
+        if (query) params.append('q', query.trim());
+        if (location) params.append('location', location.trim());
 
         const response = await apiRequest(`/api/jobs?${params.toString()}`);
         

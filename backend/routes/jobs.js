@@ -3,7 +3,10 @@ const jwt = require("jsonwebtoken");
 const Job = require("../models/Job");
 const Resume = require("../models/Resume");
 const User = require("../models/User");
-const { analyzeJob, rankJobs } = require("../services/aiService");const { AppError, asyncHandler } = require("../utils/errorHandler");
+const { analyzeJob, rankJobs } = require("../services/aiService");
+const { AppError, asyncHandler } = require("../utils/errorHandler");
+const { validateJobFilters, isValidSearchQuery } = require("../utils/securityMiddleware");
+
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || "change-me-in-prod";
 
@@ -29,17 +32,35 @@ const optionalAuth = async (req, res, next) => {
 router.get(
 	"/jobs",
 	optionalAuth,
+	validateJobFilters,
 	asyncHandler(async (req, res) => {
 		const { q, location, company, minScore } = req.query;
 		const filter = {};
 
+		// Validate and sanitize query parameters
 		if (q) {
+			if (!isValidSearchQuery(q)) {
+				throw new AppError("Invalid search query", 400, {
+					field: "q",
+					code: "INVALID_SEARCH"
+				});
+			}
 			filter.title = { $regex: q, $options: "i" };
 		}
 		if (location) {
+			if (location.length > 100) {
+				throw new AppError("Location string too long", 400, {
+					field: "location"
+				});
+			}
 			filter.location = { $regex: location, $options: "i" };
 		}
 		if (company) {
+			if (company.length > 100) {
+				throw new AppError("Company string too long", 400, {
+					field: "company"
+				});
+			}
 			filter.company = { $regex: company, $options: "i" };
 		}
 		filter.source = { $ne: "restricted" }; // ensure we never serve restricted sources

@@ -54,7 +54,9 @@
                 <form id="resumeForm" style="display: block;">
                     <div class="form-group">
                         <label for="resumeText">Resume Content</label>
-                        <textarea id="resumeText" required placeholder="Paste your resume here..." style="min-height: 300px;"></textarea>
+                        <textarea id="resumeText" required placeholder="Paste your resume here..." style="min-height: 300px;" maxlength="50000"></textarea>
+                        <div id="resumeText-error" style="display: none; color: #c62828; font-size: 12px; margin-top: 4px;"></div>
+                        <small style="color: #666; font-size: 12px;">Minimum 50 characters required</small>
                     </div>
                     
                     <div class="form-actions">
@@ -126,6 +128,7 @@
 
     <script src="config.js"></script>
     <script src="auth.js"></script>
+    <script src="validation.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script>
         let currentResume = null;
@@ -175,28 +178,32 @@
             fileUploadArea.style.background = 'white';
             
             const files = e.dataTransfer.files;
-            if (files.length > 0 && files[0].type === 'application/pdf') {
-                resumePdfInput.files = files;
-                displayFileInfo(files[0]);
-            } else {
-                showToast('Please upload a PDF file', 'error');
+            if (files.length > 0) {
+                const fileValidation = Validators.file(files[0], 5);
+                if (fileValidation.valid) {
+                    resumePdfInput.files = files;
+                    displayFileInfo(files[0]);
+                } else {
+                    showToast(fileValidation.message, 'error');
+                }
             }
         });
 
         resumePdfInput.addEventListener('change', (e) => {
             if (e.target.files.length > 0) {
-                displayFileInfo(e.target.files[0]);
+                const fileValidation = Validators.file(e.target.files[0], 5);
+                if (fileValidation.valid) {
+                    displayFileInfo(e.target.files[0]);
+                } else {
+                    showToast(fileValidation.message, 'error');
+                    resumePdfInput.value = '';
+                }
             }
         });
 
         function displayFileInfo(file) {
             const sizeInMB = (file.size / (1024 * 1024)).toFixed(2);
             
-            if (file.size > 5 * 1024 * 1024) {
-                showToast('File too large. Maximum 5MB allowed.', 'error');
-                return;
-            }
-
             document.getElementById('fileName').textContent = file.name;
             document.getElementById('fileSize').textContent = `${sizeInMB} MB`;
             uploadPlaceholder.style.display = 'none';
@@ -306,11 +313,15 @@
         document.getElementById('resumeForm').addEventListener('submit', async (e) => {
             e.preventDefault();
 
-            const resumeText = document.getElementById('resumeText').value.trim();
+            const resumeText = Sanitizers.text(document.getElementById('resumeText').value);
             
-            if (!resumeText || resumeText.length < 50) {
-                showToast('Resume text is too short. Please provide more details.', 'error');
+            const validation = Validators.resumeText(resumeText);
+            if (!validation.valid) {
+                showValidationError('resumeText', validation.message);
+                showToast(validation.message, 'error');
                 return;
+            } else {
+                clearValidationError('resumeText');
             }
             
             const saveBtn = document.getElementById('saveResumeBtn');

@@ -2,7 +2,7 @@ const express = require("express");
 const Resume = require("../models/Resume");
 const { authMiddleware, TOKEN_TYPES } = require("../utils/authUtils");
 const { AppError, asyncHandler } = require("../utils/errorHandler");
-const { validateInput } = require("../utils/securityMiddleware");
+const { validateInput, validateResumeInput, isValidResumeText } = require("../utils/securityMiddleware");
 
 const router = express.Router();
 
@@ -12,12 +12,22 @@ const authRequired = authMiddleware([TOKEN_TYPES.WEB, TOKEN_TYPES.EXTENSION]);
 router.post(
 	"/resume",
 	authRequired,
+	validateResumeInput,
 	validateInput({
 		resumeText: { required: true, type: "string", minLength: 50, maxLength: 50000 },
 	}),
 	asyncHandler(async (req, res) => {
 		const { resumeText } = req.body;
 		const userId = req.user._id;
+
+		// Validate resume text
+		if (!isValidResumeText(resumeText)) {
+			throw new AppError(
+				"Resume must be between 50 and 50,000 characters",
+				400,
+				{ field: "resumeText" }
+			);
+		}
 
 		// Extract skills from resume text (simple keyword matching)
 		const knownSkills = [
@@ -46,10 +56,11 @@ router.post(
 			"GraphQL",
 		];
 
+		const lowerText = resumeText.toLowerCase();
 		const parsedSkills = knownSkills.filter(
 			(skill) =>
-				resumeText.toLowerCase().includes(skill.toLowerCase()) ||
-				resumeText.toLowerCase().includes(skill.split(".")[0].toLowerCase())
+				lowerText.includes(skill.toLowerCase()) ||
+				lowerText.includes(skill.split(".")[0].toLowerCase())
 		);
 
 		// Extract years of experience (heuristic)
