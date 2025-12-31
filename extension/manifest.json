@@ -1,0 +1,20 @@
+{
+	"manifest_version": 3,
+	"name": "AI Job Discovery Assistant",
+	"description": "Manual-first job application assistant with on-demand reading and autofill.",
+	"version": "0.1.0",
+	"action": {
+		"default_popup": "popup.html"
+	},
+	"permissions": ["activeTab", "scripting", "storage", "tabs"],
+	"content_scripts": [
+		{
+			"matches": ["<all_urls>"],
+			"js": ["utils/captchaDetector.js", "content/jobReader.js", "content/autofill.js", "content/submitGuard.js"],
+			"run_at": "document_idle"
+		}
+	],
+	"content_security_policy": {
+		"extension_pages": "script-src 'self'; object-src 'self'"
+	}
+}
