@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resume - AI Job Assistant</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="container">
+            <div class="nav-brand">
+                <h1>🎯 AI Job Assistant</h1>
+            </div>
+            <div class="nav-links">
+                <a href="index.html">Jobs</a>
+                <a href="resume.html" class="active">Resume</a>
+                <a href="applications.html">Applications</a>
+                <div id="authButtons">
+                    <a href="login.html" class="btn-secondary">Login</a>
+                    <a href="signup.html" class="btn-primary">Sign Up</a>
+                </div>
+                <div id="userMenu" style="display: none;">
+                    <span id="userName">User</span>
+                    <button id="logoutBtn" class="btn-secondary">Logout</button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container" style="padding: 48px 0;">
+        <h2>Your Resume</h2>
+        <p style="color: #666; margin-bottom: 32px;">Upload or update your resume to get personalized job recommendations</p>
+
+        <div id="resumeSection">
+            <!-- Upload Form -->
+            <div id="uploadForm" class="auth-card" style="max-width: 600px; margin: 0;">
+                <h3 style="margin-bottom: 16px;">Upload Resume</h3>
+                <p style="color: #666; font-size: 14px; margin-bottom: 24px;">
+                    Paste your resume text below. We'll extract your skills and experience.
+                </p>
+                
+                <form id="resumeForm">
+                    <div class="form-group">
+                        <label for="resumeText">Resume Content</label>
+                        <textarea id="resumeText" required placeholder="Paste your resume here..." style="min-height: 300px;"></textarea>
+                    </div>
+                    
+                    <div class="form-actions">
+                        <button type="submit" class="btn-primary" id="saveResumeBtn">Save Resume</button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Resume Display -->
+            <div id="resumeDisplay" style="display: none;">
+                <div class="auth-card" style="max-width: 800px; margin: 0;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+                        <h3>Current Resume</h3>
+                        <button class="btn-secondary" id="editResumeBtn">Edit</button>
+                    </div>
+
+                    <div class="dashboard-grid" style="margin-bottom: 24px;">
+                        <div class="stat-card">
+                            <div class="stat-label">Skills Detected</div>
+                            <div class="stat-value" id="skillsCount">0</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">Years Experience</div>
+                            <div class="stat-value" id="yearsExp">0</div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Extracted Skills</label>
+                        <div id="skillsList" class="job-skills"></div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Resume Preview</label>
+                        <div id="resumePreview" style="background: #f5f7fa; padding: 16px; border-radius: 8px; white-space: pre-wrap; font-size: 14px; line-height: 1.6;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="config.js"></script>
+    <script src="auth.js"></script>
+    <script>
+        let currentResume = null;
+
+        async function loadResume() {
+            try {
+                const response = await apiRequest('/api/resume');
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.resume) {
+                        currentResume = data.resume;
+                        displayResume(data.resume);
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to load resume:', error);
+            }
+        }
+
+        function displayResume(resume) {
+            document.getElementById('uploadForm').style.display = 'none';
+            document.getElementById('resumeDisplay').style.display = 'block';
+
+            document.getElementById('skillsCount').textContent = resume.skills?.length || 0;
+            document.getElementById('yearsExp').textContent = resume.yearsExperience || 0;
+
+            const skillsList = document.getElementById('skillsList');
+            skillsList.innerHTML = '';
+            (resume.skills || []).forEach(skill => {
+                const tag = document.createElement('span');
+                tag.className = 'skill-tag';
+                tag.textContent = skill;
+                skillsList.appendChild(tag);
+            });
+
+            document.getElementById('resumePreview').textContent = resume.originalText || '';
+        }
+
+        document.getElementById('resumeForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const resumeText = document.getElementById('resumeText').value;
+            const saveBtn = document.getElementById('saveResumeBtn');
+
+            saveBtn.disabled = true;
+            saveBtn.textContent = 'Saving...';
+
+            try {
+                const response = await apiRequest('/api/resume', {
+                    method: 'POST',
+                    body: JSON.stringify({ resumeText })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showToast('Resume saved successfully!');
+                    currentResume = data.data;
+                    displayResume(currentResume);
+                } else {
+                    showToast(data.error?.message || 'Failed to save resume', 'error');
+                }
+            } catch (error) {
+                showToast('Failed to save resume', 'error');
+            } finally {
+                saveBtn.disabled = false;
+                saveBtn.textContent = 'Save Resume';
+            }
+        });
+
+        document.getElementById('editResumeBtn')?.addEventListener('click', () => {
+            if (currentResume) {
+                document.getElementById('resumeText').value = currentResume.originalText || '';
+            }
+            document.getElementById('uploadForm').style.display = 'block';
+            document.getElementById('resumeDisplay').style.display = 'none';
+        });
+
+        document.addEventListener('DOMContentLoaded', () => {
+            if (requireAuth()) {
+                loadResume();
+            }
+        });
+    </script>
+</body>
+</html>

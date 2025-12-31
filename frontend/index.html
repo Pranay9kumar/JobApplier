@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Job Assistant - Discover Your Next Opportunity</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="container">
+            <div class="nav-brand">
+                <h1>🎯 AI Job Assistant</h1>
+            </div>
+            <div class="nav-links">
+                <a href="index.html" class="active">Jobs</a>
+                <a href="resume.html">Resume</a>
+                <a href="applications.html">Applications</a>
+                <div id="authButtons">
+                    <a href="login.html" class="btn-secondary">Login</a>
+                    <a href="signup.html" class="btn-primary">Sign Up</a>
+                </div>
+                <div id="userMenu" style="display: none;">
+                    <span id="userName">User</span>
+                    <button id="logoutBtn" class="btn-secondary">Logout</button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="container">
+            <h2>Find Jobs That Match Your Skills</h2>
+            <p>AI-powered job discovery with smart relevance scoring</p>
+            
+            <!-- Search Bar -->
+            <div class="search-bar">
+                <input type="text" id="searchQuery" placeholder="Search job titles, skills, or companies...">
+                <input type="text" id="locationFilter" placeholder="Location">
+                <button id="searchBtn" class="btn-primary">Search Jobs</button>
+            </div>
+        </div>
+    </section>
+
+    <!-- Jobs Section -->
+    <section class="jobs-section">
+        <div class="container">
+            <div class="section-header">
+                <h3>Available Opportunities</h3>
+                <div class="filters">
+                    <select id="sortBy">
+                        <option value="recent">Most Recent</option>
+                        <option value="relevance">Best Match</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Loading State -->
+            <div id="loadingState" class="loading">
+                <div class="spinner"></div>
+                <p>Loading jobs...</p>
+            </div>
+
+            <!-- Error State -->
+            <div id="errorState" class="error-message" style="display: none;">
+                <p>Failed to load jobs. Please try again.</p>
+                <button id="retryBtn" class="btn-secondary">Retry</button>
+            </div>
+
+            <!-- Empty State -->
+            <div id="emptyState" class="empty-state" style="display: none;">
+                <p>No jobs found. Try adjusting your search.</p>
+            </div>
+
+            <!-- Jobs Grid -->
+            <div id="jobsGrid" class="jobs-grid"></div>
+
+            <!-- Load More -->
+            <div id="loadMoreContainer" style="display: none; text-align: center; margin-top: 32px;">
+                <button id="loadMoreBtn" class="btn-secondary">Load More Jobs</button>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <p>&copy; 2025 AI Job Assistant. Safe, user-controlled job applications.</p>
+            <div class="footer-links">
+                <a href="#">Privacy Policy</a>
+                <a href="#">Terms of Service</a>
+                <a href="#">Help</a>
+            </div>
+        </div>
+    </footer>
+
+    <script src="config.js"></script>
+    <script src="auth.js"></script>
+    <script src="jobs.js"></script>
+</body>
+</html>
