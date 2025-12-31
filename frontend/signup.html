@@ -34,7 +34,8 @@
                 
                 <div class="form-group">
                     <label for="password">Password</label>
-                    <input type="password" id="password" required placeholder="At least 6 characters" minlength="6">
+                    <input type="password" id="password" required placeholder="At least 8 characters" minlength="8">
+                    <small style="color: #666; font-size: 12px;">Must be at least 8 characters</small>
                 </div>
                 
                 <div class="form-actions">
@@ -53,26 +54,36 @@
         document.getElementById('signupForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             
-            const name = document.getElementById('name').value;
-            const email = document.getElementById('email').value;
+            const name = document.getElementById('name').value.trim();
+            const email = document.getElementById('email').value.trim();
             const password = document.getElementById('password').value;
             const signupBtn = document.getElementById('signupBtn');
             
+            if (!name || !email || !password) {
+                showToast('Please fill in all fields', 'error');
+                return;
+            }
+            
+            if (password.length < 8) {
+                showToast('Password must be at least 8 characters', 'error');
+                return;
+            }
+            
             signupBtn.disabled = true;
-            signupBtn.textContent = 'Creating account...';
+            signupBtn.innerHTML = '<span class="spinner" style="width: 16px; height: 16px; border-width: 2px;"></span> Creating account...';
             
             try {
                 const response = await fetch(`${API_BASE}/api/auth/signup`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name, email, password })
+                    body: JSON.stringify({ name, email, password, tokenType: 'web' })
                 });
                 
                 const data = await response.json();
                 
-                if (response.ok) {
+                if (response.ok && data.success) {
                     saveAuth(data.accessToken, data.refreshToken, data.user);
-                    showToast('Account created successfully!');
+                    showToast('✓ Account created successfully!');
                     
                     setTimeout(() => {
                         window.location.href = 'resume.html';
@@ -83,7 +94,8 @@
                     signupBtn.textContent = 'Sign Up';
                 }
             } catch (error) {
-                showToast('Signup failed. Please try again.', 'error');
+                console.error('Signup error:', error);
+                showToast('Connection failed. Check if server is running.', 'error');
                 signupBtn.disabled = false;
                 signupBtn.textContent = 'Sign Up';
             }

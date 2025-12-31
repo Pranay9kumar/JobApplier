@@ -37,17 +37,56 @@
             <div id="uploadForm" class="auth-card" style="max-width: 600px; margin: 0;">
                 <h3 style="margin-bottom: 16px;">Upload Resume</h3>
                 <p style="color: #666; font-size: 14px; margin-bottom: 24px;">
-                    Paste your resume text below. We'll extract your skills and experience.
+                    Upload a PDF file or paste your resume text. We'll extract your skills and experience.
                 </p>
                 
-                <form id="resumeForm">
+                <!-- Upload Method Tabs -->
+                <div style="display: flex; gap: 12px; margin-bottom: 24px; border-bottom: 2px solid #e0e0e0;">
+                    <button type="button" id="textTab" class="upload-tab active" onclick="switchTab('text')">
+                        📝 Paste Text
+                    </button>
+                    <button type="button" id="pdfTab" class="upload-tab" onclick="switchTab('pdf')">
+                        📄 Upload PDF
+                    </button>
+                </div>
+
+                <!-- Text Upload -->
+                <form id="resumeForm" style="display: block;">
                     <div class="form-group">
                         <label for="resumeText">Resume Content</label>
                         <textarea id="resumeText" required placeholder="Paste your resume here..." style="min-height: 300px;"></textarea>
                     </div>
                     
                     <div class="form-actions">
-                        <button type="submit" class="btn-primary" id="saveResumeBtn">Save Resume</button>
+                        <button type="submit" class="btn-primary" id="saveResumeBtn">
+                            💾 Save Resume
+                        </button>
+                    </div>
+                </form>
+
+                <!-- PDF Upload -->
+                <form id="pdfUploadForm" style="display: none;">
+                    <div class="form-group">
+                        <label for="resumePdf">Upload PDF Resume</label>
+                        <div class="file-upload-area" id="fileUploadArea">
+                            <input type="file" id="resumePdf" accept=".pdf" style="display: none;">
+                            <div class="upload-placeholder">
+                                <div style="font-size: 48px; margin-bottom: 16px;">📄</div>
+                                <p style="margin: 0; font-weight: 600;">Click to upload or drag and drop</p>
+                                <p style="margin: 8px 0 0 0; color: #666; font-size: 14px;">PDF files only (Max 5MB)</p>
+                            </div>
+                            <div id="fileInfo" style="display: none; padding: 20px; text-align: center;">
+                                <div style="font-size: 32px; margin-bottom: 8px;">✓</div>
+                                <p id="fileName" style="margin: 0; font-weight: 600;"></p>
+                                <p id="fileSize" style="margin: 4px 0 0 0; color: #666; font-size: 14px;"></p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-actions">
+                        <button type="submit" class="btn-primary" id="uploadPdfBtn">
+                            📤 Upload & Extract
+                        </button>
                     </div>
                 </form>
             </div>
@@ -87,8 +126,147 @@
 
     <script src="config.js"></script>
     <script src="auth.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script>
         let currentResume = null;
+
+        // Tab switching
+        function switchTab(tab) {
+            const textTab = document.getElementById('textTab');
+            const pdfTab = document.getElementById('pdfTab');
+            const resumeForm = document.getElementById('resumeForm');
+            const pdfUploadForm = document.getElementById('pdfUploadForm');
+
+            if (tab === 'text') {
+                textTab.classList.add('active');
+                pdfTab.classList.remove('active');
+                resumeForm.style.display = 'block';
+                pdfUploadForm.style.display = 'none';
+            } else {
+                pdfTab.classList.add('active');
+                textTab.classList.remove('active');
+                pdfUploadForm.style.display = 'block';
+                resumeForm.style.display = 'none';
+            }
+        }
+
+        // PDF upload handling
+        const fileUploadArea = document.getElementById('fileUploadArea');
+        const resumePdfInput = document.getElementById('resumePdf');
+        const fileInfo = document.getElementById('fileInfo');
+        const uploadPlaceholder = document.querySelector('.upload-placeholder');
+
+        fileUploadArea.addEventListener('click', () => resumePdfInput.click());
+
+        fileUploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            fileUploadArea.style.borderColor = '#667eea';
+            fileUploadArea.style.background = '#f0f4ff';
+        });
+
+        fileUploadArea.addEventListener('dragleave', () => {
+            fileUploadArea.style.borderColor = '#ddd';
+            fileUploadArea.style.background = 'white';
+        });
+
+        fileUploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            fileUploadArea.style.borderColor = '#ddd';
+            fileUploadArea.style.background = 'white';
+            
+            const files = e.dataTransfer.files;
+            if (files.length > 0 && files[0].type === 'application/pdf') {
+                resumePdfInput.files = files;
+                displayFileInfo(files[0]);
+            } else {
+                showToast('Please upload a PDF file', 'error');
+            }
+        });
+
+        resumePdfInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                displayFileInfo(e.target.files[0]);
+            }
+        });
+
+        function displayFileInfo(file) {
+            const sizeInMB = (file.size / (1024 * 1024)).toFixed(2);
+            
+            if (file.size > 5 * 1024 * 1024) {
+                showToast('File too large. Maximum 5MB allowed.', 'error');
+                return;
+            }
+
+            document.getElementById('fileName').textContent = file.name;
+            document.getElementById('fileSize').textContent = `${sizeInMB} MB`;
+            uploadPlaceholder.style.display = 'none';
+            fileInfo.style.display = 'block';
+        }
+
+        // Extract text from PDF
+        async function extractTextFromPDF(file) {
+            const arrayBuffer = await file.arrayBuffer();
+            const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+            let fullText = '';
+
+            for (let i = 1; i <= pdf.numPages; i++) {
+                const page = await pdf.getPage(i);
+                const textContent = await page.getTextContent();
+                const pageText = textContent.items.map(item => item.str).join(' ');
+                fullText += pageText + '\\n';
+            }
+
+            return fullText;
+        }
+
+        // PDF upload form submission
+        document.getElementById('pdfUploadForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const file = resumePdfInput.files[0];
+            if (!file) {
+                showToast('Please select a PDF file', 'error');
+                return;
+            }
+
+            const uploadBtn = document.getElementById('uploadPdfBtn');
+            uploadBtn.disabled = true;
+            uploadBtn.innerHTML = '<span class=\"spinner\" style=\"width: 16px; height: 16px; border-width: 2px;\"></span> Extracting text...';
+
+            try {
+                // Configure PDF.js worker
+                pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+                
+                const resumeText = await extractTextFromPDF(file);
+
+                if (!resumeText || resumeText.trim().length < 50) {
+                    throw new Error('Could not extract enough text from PDF');
+                }
+
+                uploadBtn.textContent = 'Saving to server...';
+
+                const response = await apiRequest('/api/resume', {
+                    method: 'POST',
+                    body: JSON.stringify({ resumeText: resumeText.trim() })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showToast('✓ Resume uploaded successfully!');
+                    currentResume = data.data;
+                    displayResume(currentResume);
+                } else {
+                    showToast(data.error?.message || 'Failed to save resume', 'error');
+                }
+            } catch (error) {
+                console.error('PDF extraction error:', error);
+                showToast('Failed to extract text from PDF. Try pasting text instead.', 'error');
+            } finally {
+                uploadBtn.disabled = false;
+                uploadBtn.innerHTML = '📤 Upload & Extract';
+            }
+        });
 
         async function loadResume() {
             try {
@@ -128,11 +306,17 @@
         document.getElementById('resumeForm').addEventListener('submit', async (e) => {
             e.preventDefault();
 
-            const resumeText = document.getElementById('resumeText').value;
+            const resumeText = document.getElementById('resumeText').value.trim();
+            
+            if (!resumeText || resumeText.length < 50) {
+                showToast('Resume text is too short. Please provide more details.', 'error');
+                return;
+            }
+            
             const saveBtn = document.getElementById('saveResumeBtn');
 
             saveBtn.disabled = true;
-            saveBtn.textContent = 'Saving...';
+            saveBtn.innerHTML = '<span class="spinner" style="width: 16px; height: 16px; border-width: 2px;"></span> Analyzing...';
 
             try {
                 const response = await apiRequest('/api/resume', {
@@ -143,17 +327,18 @@
                 const data = await response.json();
 
                 if (response.ok) {
-                    showToast('Resume saved successfully!');
+                    showToast('✓ Resume saved successfully!');
                     currentResume = data.data;
                     displayResume(currentResume);
                 } else {
                     showToast(data.error?.message || 'Failed to save resume', 'error');
                 }
             } catch (error) {
-                showToast('Failed to save resume', 'error');
+                console.error('Resume save error:', error);
+                showToast('Connection failed. Check if server is running.', 'error');
             } finally {
                 saveBtn.disabled = false;
-                saveBtn.textContent = 'Save Resume';
+                saveBtn.innerHTML = '💾 Save Resume';
             }
         });
 

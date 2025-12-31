@@ -48,27 +48,31 @@
         document.getElementById('loginForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             
-            const email = document.getElementById('email').value;
+            const email = document.getElementById('email').value.trim();
             const password = document.getElementById('password').value;
             const loginBtn = document.getElementById('loginBtn');
             
+            if (!email || !password) {
+                showToast('Please fill in all fields', 'error');
+                return;
+            }
+            
             loginBtn.disabled = true;
-            loginBtn.textContent = 'Logging in...';
+            loginBtn.innerHTML = '<span class="spinner" style="width: 16px; height: 16px; border-width: 2px;"></span> Logging in...';
             
             try {
                 const response = await fetch(`${API_BASE}/api/auth/login`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email, password })
+                    body: JSON.stringify({ email, password, tokenType: 'web' })
                 });
                 
                 const data = await response.json();
                 
-                if (response.ok) {
+                if (response.ok && data.success) {
                     saveAuth(data.accessToken, data.refreshToken, data.user);
-                    showToast('Login successful!');
+                    showToast('✓ Login successful!');
                     
-                    // Check for redirect parameter
                     const urlParams = new URLSearchParams(window.location.search);
                     const redirect = urlParams.get('redirect') || 'index.html';
                     
@@ -76,12 +80,13 @@
                         window.location.href = redirect;
                     }, 500);
                 } else {
-                    showToast(data.error?.message || 'Login failed', 'error');
+                    showToast(data.error?.message || 'Invalid email or password', 'error');
                     loginBtn.disabled = false;
                     loginBtn.textContent = 'Login';
                 }
             } catch (error) {
-                showToast('Login failed. Please try again.', 'error');
+                console.error('Login error:', error);
+                showToast('Connection failed. Check if server is running.', 'error');
                 loginBtn.disabled = false;
                 loginBtn.textContent = 'Login';
             }

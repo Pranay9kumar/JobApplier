@@ -73,6 +73,7 @@ function renderJobs() {
 function createJobCard(job) {
     const card = document.createElement('div');
     card.className = 'job-card';
+    card.style.animationDelay = `${Math.random() * 0.2}s`;
     
     const hasRelevance = isLoggedIn() && job.relevanceScore !== undefined;
     
@@ -92,15 +93,19 @@ function createJobCard(job) {
         </div>
         
         ${hasRelevance ? `
-            <div class="job-relevance show">
+            <div class="job-relevance show" style="animation: fadeIn 0.5s ease;">
                 <div class="relevance-score">${job.relevanceScore}% Match</div>
                 <div class="relevance-text">Based on your resume</div>
             </div>
         ` : ''}
         
         <div class="job-actions">
-            <button class="btn-secondary" onclick="viewJobDetails('${job._id}')">View Details</button>
-            <button class="btn-primary" onclick="applyToJob('${job._id}')">Apply Now</button>
+            <button class="btn-secondary" onclick="viewJobDetails('${job._id}')" style="transition: all 0.3s;">
+                👁️ View Details
+            </button>
+            <button class="btn-primary" onclick="applyToJob('${job._id}')" style="transition: all 0.3s;">
+                🚀 Apply Now
+            </button>
         </div>
     `;
     
