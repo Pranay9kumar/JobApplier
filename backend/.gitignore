@@ -1,0 +1,36 @@
+# Ignore secrets and generated files
+node_modules/
+.env
+.env.local
+.env.*.local
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# IDE files
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Build outputs
+dist/
+build/
+coverage/
+.nyc_output/
+
+# Misc
+*.zip
+*.tar.gz
+.cache/
+temp/
+tmp/
