@@ -55,88 +55,131 @@
     <script src="config.js"></script>
     <script src="validation.js"></script>
     <script>
-        document.getElementById('signupForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
+        // Wait for all scripts to load
+        window.addEventListener('DOMContentLoaded', () => {
+            const signupForm = document.getElementById('signupForm');
             
-            const name = document.getElementById('name').value.trim();
-            const email = Sanitizers.email(document.getElementById('email').value);
-            const password = document.getElementById('password').value;
-            const signupBtn = document.getElementById('signupBtn');
-            
-            // Validate all fields
-            let isValid = true;
-            
-            if (!name) {
-                showValidationError('name', 'Name is required');
-                isValid = false;
-            } else {
-                const nameValidation = Validators.name(name);
-                if (!nameValidation.valid) {
-                    showValidationError('name', nameValidation.message);
-                    isValid = false;
-                } else {
-                    clearValidationError('name');
-                }
-            }
-            
-            if (!email) {
-                showValidationError('email', 'Email is required');
-                isValid = false;
-            } else if (!Validators.email(email)) {
-                showValidationError('email', 'Invalid email address');
-                isValid = false;
-            } else {
-                clearValidationError('email');
-            }
-            
-            if (!password) {
-                showValidationError('password', 'Password is required');
-                isValid = false;
-            } else {
-                const passwordValidation = Validators.password(password);
-                if (!passwordValidation.valid) {
-                    showValidationError('password', passwordValidation.message);
-                    isValid = false;
-                } else {
-                    clearValidationError('password');
-                }
-            }
-            
-            if (!isValid) {
-                showToast('Please fix the errors above', 'error');
+            if (!signupForm) {
+                console.error('Signup form not found');
                 return;
             }
             
-            signupBtn.disabled = true;
-            signupBtn.innerHTML = '<span class="spinner" style="width: 16px; height: 16px; border-width: 2px;"></span> Creating account...';
-            
-            try {
-                const response = await fetch(`${API_BASE}/api/auth/signup`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name, email, password, tokenType: 'web' })
-                });
+            signupForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                console.log('Signup form submitted');
                 
-                const data = await response.json();
+                const nameInput = document.getElementById('name');
+                const emailInput = document.getElementById('email');
+                const passwordInput = document.getElementById('password');
+                const signupBtn = document.getElementById('signupBtn');
                 
-                if (response.ok && data.success) {
-                    saveAuth(data.accessToken, data.refreshToken, data.user);
-                    showToast('✓ Account created successfully!');
-                    
-                    setTimeout(() => {
-                        window.location.href = 'resume.html';
-                    }, 500);
+                if (!nameInput || !emailInput || !passwordInput) {
+                    console.error('Form inputs not found');
+                    return;
+                }
+                
+                const name = nameInput.value.trim();
+                const emailRaw = emailInput.value;
+                const password = passwordInput.value;
+                
+                console.log('Form values:', { name, email: emailRaw, passwordLength: password.length });
+                
+                // Check if validation utilities are loaded
+                if (typeof Validators === 'undefined' || typeof Sanitizers === 'undefined') {
+                    console.error('Validation utilities not loaded');
+                    alert('Page not fully loaded. Please refresh and try again.');
+                    return;
+                }
+                
+                const email = Sanitizers.email(emailRaw);
+                
+                // Validate all fields
+                let isValid = true;
+                
+                // Name validation
+                if (!name) {
+                    showValidationError('name', 'Name is required');
+                    isValid = false;
                 } else {
-                    showToast(data.error?.message || 'Signup failed', 'error');
+                    const nameValidation = Validators.name(name);
+                    if (!nameValidation.valid) {
+                        showValidationError('name', nameValidation.message);
+                        isValid = false;
+                    } else {
+                        clearValidationError('name');
+                    }
+                }
+                
+                // Email validation
+                if (!email) {
+                    showValidationError('email', 'Email is required');
+                    isValid = false;
+                } else if (!Validators.email(email)) {
+                    showValidationError('email', 'Invalid email address');
+                    isValid = false;
+                } else {
+                    clearValidationError('email');
+                }
+                
+                // Password validation
+                if (!password) {
+                    showValidationError('password', 'Password is required');
+                    isValid = false;
+                } else {
+                    const passwordValidation = Validators.password(password);
+                    if (!passwordValidation.valid) {
+                        showValidationError('password', passwordValidation.message);
+                        isValid = false;
+                    } else {
+                        clearValidationError('password');
+                    }
+                }
+                
+                if (!isValid) {
+                    console.log('Validation failed');
+                    showToast('Please fix the errors above', 'error');
+                    return;
+                }
+                
+                console.log('Validation passed, sending signup request');
+                signupBtn.disabled = true;
+                signupBtn.innerHTML = '<span class="spinner" style="width: 16px; height: 16px; border-width: 2px;"></span> Creating account...';
+                
+                try {
+                    const url = `${API_BASE}/api/auth/signup`;
+                    console.log('Sending request to:', url);
+                    
+                    const response = await fetch(url, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ name, email, password, tokenType: 'web' })
+                    });
+                    
+                    console.log('Response status:', response.status);
+                    const data = await response.json();
+                    console.log('Response data:', data);
+                    
+                    if (response.ok && data.success) {
+                        saveAuth(data.accessToken, data.refreshToken, data.user);
+                        showToast('✓ Account created successfully!');
+                        
+                        setTimeout(() => {
+                            window.location.href = 'resume.html';
+                        }, 500);
+                    } else {
+                        const errorMsg = data.error?.message || data.message || 'Signup failed';
+                        console.error('Signup failed:', errorMsg);
+                        showToast(errorMsg, 'error');
+                        signupBtn.disabled = false;
+                        signupBtn.textContent = 'Sign Up';
+                    }
+                } catch (error) {
+                    console.error('Signup error:', error);
+                    showToast('Connection failed. Check if server is running.', 'error');
                     signupBtn.disabled = false;
                     signupBtn.textContent = 'Sign Up';
                 }
-            } catch (error) {
-                console.error('Signup error:', error);
-                showToast('Connection failed. Check if server is running.', 'error');
-                signupBtn.disabled = false;
-                signupBtn.textContent = 'Sign Up';
-            }
+            });
         });
     </script>
 </body>

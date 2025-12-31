@@ -48,71 +48,109 @@
     <script src="config.js"></script>
     <script src="validation.js"></script>
     <script>
-        document.getElementById('loginForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
+        window.addEventListener('DOMContentLoaded', () => {
+            const loginForm = document.getElementById('loginForm');
             
-            const email = Sanitizers.email(document.getElementById('email').value);
-            const password = document.getElementById('password').value;
-            const loginBtn = document.getElementById('loginBtn');
-            
-            // Validate fields
-            let isValid = true;
-            
-            if (!email) {
-                showValidationError('email', 'Email is required');
-                isValid = false;
-            } else if (!Validators.email(email)) {
-                showValidationError('email', 'Invalid email address');
-                isValid = false;
-            } else {
-                clearValidationError('email');
-            }
-            
-            if (!password) {
-                showValidationError('password', 'Password is required');
-                isValid = false;
-            } else {
-                clearValidationError('password');
-            }
-            
-            if (!isValid) {
-                showToast('Please fix the errors above', 'error');
+            if (!loginForm) {
+                console.error('Login form not found');
                 return;
             }
             
-            loginBtn.disabled = true;
-            loginBtn.innerHTML = '<span class="spinner" style="width: 16px; height: 16px; border-width: 2px;"></span> Logging in...';
-            
-            try {
-                const response = await fetch(`${API_BASE}/api/auth/login`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email, password, tokenType: 'web' })
-                });
+            loginForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                console.log('Login form submitted');
                 
-                const data = await response.json();
+                const emailInput = document.getElementById('email');
+                const passwordInput = document.getElementById('password');
+                const loginBtn = document.getElementById('loginBtn');
                 
-                if (response.ok && data.success) {
-                    saveAuth(data.accessToken, data.refreshToken, data.user);
-                    showToast('✓ Login successful!');
-                    
-                    const urlParams = new URLSearchParams(window.location.search);
-                    const redirect = urlParams.get('redirect') || 'index.html';
-                    
-                    setTimeout(() => {
-                        window.location.href = redirect;
-                    }, 500);
+                if (!emailInput || !passwordInput) {
+                    console.error('Form inputs not found');
+                    return;
+                }
+                
+                const emailRaw = emailInput.value;
+                const password = passwordInput.value;
+                
+                console.log('Form values:', { email: emailRaw, passwordLength: password.length });
+                
+                // Check if validation utilities are loaded
+                if (typeof Validators === 'undefined' || typeof Sanitizers === 'undefined') {
+                    console.error('Validation utilities not loaded');
+                    alert('Page not fully loaded. Please refresh and try again.');
+                    return;
+                }
+                
+                const email = Sanitizers.email(emailRaw);
+                
+                // Validate fields
+                let isValid = true;
+                
+                if (!email) {
+                    showValidationError('email', 'Email is required');
+                    isValid = false;
+                } else if (!Validators.email(email)) {
+                    showValidationError('email', 'Invalid email address');
+                    isValid = false;
                 } else {
-                    showToast(data.error?.message || 'Invalid email or password', 'error');
+                    clearValidationError('email');
+                }
+                
+                if (!password) {
+                    showValidationError('password', 'Password is required');
+                    isValid = false;
+                } else {
+                    clearValidationError('password');
+                }
+                
+                if (!isValid) {
+                    console.log('Validation failed');
+                    showToast('Please fix the errors above', 'error');
+                    return;
+                }
+                
+                console.log('Validation passed, sending login request');
+                loginBtn.disabled = true;
+                loginBtn.innerHTML = '<span class="spinner" style="width: 16px; height: 16px; border-width: 2px;"></span> Logging in...';
+                
+                try {
+                    const url = `${API_BASE}/api/auth/login`;
+                    console.log('Sending request to:', url);
+                    
+                    const response = await fetch(url, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ email, password, tokenType: 'web' })
+                    });
+                    
+                    console.log('Response status:', response.status);
+                    const data = await response.json();
+                    console.log('Response data:', data);
+                    
+                    if (response.ok && data.success) {
+                        saveAuth(data.accessToken, data.refreshToken, data.user);
+                        showToast('✓ Login successful!');
+                        
+                        const urlParams = new URLSearchParams(window.location.search);
+                        const redirect = urlParams.get('redirect') || 'index.html';
+                        
+                        setTimeout(() => {
+                            window.location.href = redirect;
+                        }, 500);
+                    } else {
+                        const errorMsg = data.error?.message || data.message || 'Invalid email or password';
+                        console.error('Login failed:', errorMsg);
+                        showToast(errorMsg, 'error');
+                        loginBtn.disabled = false;
+                        loginBtn.textContent = 'Login';
+                    }
+                } catch (error) {
+                    console.error('Login error:', error);
+                    showToast('Connection failed. Check if server is running.', 'error');
                     loginBtn.disabled = false;
                     loginBtn.textContent = 'Login';
                 }
-            } catch (error) {
-                console.error('Login error:', error);
-                showToast('Connection failed. Check if server is running.', 'error');
-                loginBtn.disabled = false;
-                loginBtn.textContent = 'Login';
-            }
+            });
         });
     </script>
 </body>
