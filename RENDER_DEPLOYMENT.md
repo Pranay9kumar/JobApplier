@@ -16,7 +16,7 @@ git add .
 # Commit
 git commit -m "Initial commit - production ready"
 
-# Create repo on GitHub, then:
+# Create repo on GitHub, then:  
 git remote add origin https://github.com/YOUR_USERNAME/applier.git
 git branch -M main
 git push -u origin main
